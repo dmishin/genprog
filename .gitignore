@@ -1,0 +1,8 @@
+machinedef_*.inl
+command_systems_cache
+*.o
+*.so
+*.lib
+*.obj
+__pycache__
+machine_wrap.cpp
