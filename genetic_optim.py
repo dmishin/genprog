@@ -1,6 +1,7 @@
-from machine import randomize, Machine, FunctionTable
+from machine import randomize, Machine, FunctionTable, command_system_hash
 import random
 from nmead import nmead_code
+import json
 
 initial_genome_range = (50, 1500)
 mutate_percent = 0.05
@@ -12,43 +13,49 @@ def create_individual():
     genomelen = random.randint(*initial_genome_range)
     return bytes([random.randint(0, 255) for _ in range(genomelen//2*2)])
 
-average_attempts = 1
-def fitness(genome, expected=(1.0,1.0)):
-    
-    norms = 0.0
-    evals = 0.0
-    steps = 0.0
-
-    m = Machine()
-    m.set_function(FunctionTable(input_data['func_index']))
-    assert isinstance(genome, bytes)
-    m.load_code(genome)
-
-    for i in range(average_attempts):
-        if i != 0: m.reset()
-        reached = m.runto(maxsteps=input_data['maxsteps'],
-                          maxevals=input_data['maxevals'],
-                          target=expected,
-                          tol=input_data['tol'])
-                          
-        norm = sum(abs(xi-x0i) for xi, x0i in zip(expected, m.get_vec_reg(0)))
-        if norm != norm:
-            norm = 1e100
-            
-        evals += m.ncalls
-        steps += m.nsteps
-
-        main = 0.0 if reached else -norm
+class Fitness:
+    def __init__(self,
+                 maxsteps=10000,
+                 maxevals=1000,
+                 tol=1e-5,
+                 average_attempts=100):
         
-        if m.ncalls < 10:
-            main -= 10.0 * (10-m.ncalls)
-        norms += main
+        self.maxsteps = maxsteps
+        self.maxevals = maxevals
+        self.tol = tol
+        self.average_attempts = average_attempts
         
-    return ( norms / average_attempts,
-             -evals/ average_attempts,
-             -steps/ average_attempts,
-             -len(genome) ) #allow 100 bytes for free
+    def __call__(self, genome, func, expected):
+        assert isinstance(genome, bytes)
+        norms = 0.0
+        evals = 0.0
+        steps = 0.0
 
+        m = Machine()
+        m.set_function(func)
+        m.load_code(genome)
+
+        for i in range(self.average_attempts):
+            if i != 0: m.reset()
+            reached = m.runto(maxsteps=self.maxsteps,
+                              maxevals=self.maxevals,
+                              target=expected,
+                              tol=self.tol)
+            norm = sum(abs(xi-x0i) for xi, x0i in zip(expected, m.get_vec_reg(0)))
+            if norm != norm:
+                norm = 1e100
+            evals += m.ncalls
+            steps += m.nsteps
+            main = 0.0 if reached else -norm
+            if m.ncalls < 10:
+                main -= 10.0 * (10-m.ncalls)
+            norms += main
+
+        return ( norms / self.average_attempts,
+                 -evals/ self.average_attempts,
+                 -steps/ self.average_attempts,
+                 -len(genome) ) #allow 100 bytes for free
+        
 crossover_signature_len = 6
 crossover_search_radius = 12
 def crossover(parent_1, parent_2):
@@ -121,12 +128,6 @@ def mutate(individual):
         mutate_once(individual)
     return bytes(individual)
 
-poolsize = 1000
-topsize = 300
-
-genome = [create_individual() for _ in range(poolsize)]
-import random
-
 
 def makenew():
     key = random.randint(0,10)
@@ -152,55 +153,34 @@ class Individual(IndividualBase):
         self.machine.load_code(genome)
         
 if __name__=="__main__":
+    poolsize = 1000
+    topsize = 300
+    genome = [create_individual() for _ in range(poolsize)]
+    
     randomize()
-    input_data = {'func_index':0,
-                  'maxsteps':10000,
-                  'maxevals':1000,
-                  'tol':0.00001,
-                  'orphan_len':1000}
-    expected_point = (1.0, 1.0)
+    
+    fitness = Fitness(maxsteps = 10000,
+                      maxevals = 1000,
+                      tol = 1e-5)
+    func, expected  = FunctionTable(0), (1.0,1.0)
     
     gen = 0
     while True:
         gen += 1
-        fgenome = [(fitness(g, expected_point),g) for g in genome]
+        fgenome = [(fitness(g, func, expected),g) for g in genome]
         fgenome.sort(key = lambda ab:ab[0], reverse=True)
         fgenome = fgenome[:topsize]
         #if gen%100 == 0:
-        print(gen,"\t",fgenome[0])
+        #print(gen,"\t",fgenome[0])
+        f, genome = fgenome[0]
+        print(json.dumps({
+            'generation': gen,
+            'fitness': f,
+            'hexcode': genome.hex(),
+            'command_system_hash': command_system_hash()
+        }))
 
         genome = [g for f,g in fgenome]
         while len(genome) < poolsize:
             for new in makenew():
                 genome.append(new[:maxgenome])
-
-if __name__=="__main__1":
-    code = b'\xcel\xd5\xfau.\x8c\x1ecJus\xca\xa4\xb6\x98\xa0\xe1\x07\xbew\x01c\xa4\xc9.w\x1ec#\x99##*/K\xb1\xe1\xa2K\xb1\xe1\xe3\x84.@\xab@\xab@\x81\xe8V\xe1\xe1@\xe1\xaf@\xe1\xe3\xaf@\xe1\x06K\x1d\x9d\x13E\xafg\x13\xc3}\xa2\xe7\xe59\x94ob9\x94obR4|q\xa7\xea\x93\r\xa2\xe7\x00"\xe54\xe54\xa2\xe7\xe54\xe54\xe54\xe54\xe5\xe7\xe54\xe54\xe54\xe54\xe54\xe54\xe5\x99\xe54\xe54\xe5\xe7\xe54\xe54\xe5\x99;4\xe54\xa2\xe7\xe5\x9e;:\xac\xf044\x0b4\xe54\xe5\x99;4\xe54\xa2\xe7\xe5\x9e;4\xe5\x99;4\x0b4\xe54\xe5\x99;4\x0b4\xe54\xe5\x99;4\xe54\xa24\xe54\xa2\xe7\xe54\xa24\xe54\xa24;4\xe54\xa2\xe7\xe54\xe54\xa24\xe54\xa2\xe7\xe54\xe54\xe5\x99;4\xe54\xa2\xe7\xe5\xea|q\xa7\xea|\x84\xa7\xea|\x84\x88@\x88@\x885\xe7@\x88\x84s\xc1\xd5\x84\xe7@\x88\x84s\xc1\xd5\x84s3\xaf@\xe1\xaf\x91\xdao\xd5\x84\x84@\xe1\xe5:\xb3\x893\xe1\xaf\x91\\o\xd5\x84@\xe1\xaf\x91\\o\xd5\x84@\xe1\xaf\x91\\o\xd5\x84@\xe1\xaf\x91\\o\xd5\x84s@\xe1\xab\\o\xd5\xcf\xe5:(\x84\xe7\xb1@\xe1\xec\x9d:(\x84\xe7\x9e;@\xd5I\xf1\x06K\x1d\x9d\x1e\xcd\xf5u|\nH\x94\xa2\xe7\xd1\rg\x13\xc9\xe7@\xe1\xe3\xfb\x9e;@\xaf@\xe1\xaf\x91\\o\xd5\x84@\xe1\xaf\x91\\\xd5I\xf1\x06K\x1d707\x1b`\x89\xac\x83^i%\xd6\x98\xe6\xad\x16|\xf65i\x98\xe6\xadi%\xdf0\xe6\xce7\xacu\xad\x16|\xf65i\xad\x16|\xf65i\x98\xe6\xad\xd8\xbd\xdf0\xe65i\x98\xe6\xad\xd8\xbd\xdf0\xe6\xce7\xacu\xadi%\xe1_i%\x1a5i\xc7I\xcb\x1a\xbc\xc5\xe9\xbbq\xf8e\xcee\xca+\xce\x10S6\xac\xeb'
-    #code=nmead_code
-    randomize()
-    input_data = {'func_index':0,
-                  'maxsteps':10000,
-                  'maxevals':1000,
-                  'tol':0.00001,
-                  'orphan_len':1000}
-    expected_point = (1.0, 1.0)
-    print("FItness for func index",input_data['func_index'])
-    print(fitness(code, expected_point))
-    input_data = {'func_index':1,
-                  'maxsteps':10000,
-                  'maxevals':1000,
-                  'tol':0.00001,
-                  'orphan_len':1000}
-    expected_point = (0.0, 0.0)
-    print("FItness for func index",input_data['func_index'])
-    print(fitness(code, expected_point))
-
-    input_data = {'func_index':2,
-                  'maxsteps':10000,
-                  'maxevals':1000,
-                  'tol':0.00001,
-                  'orphan_len':1000}
-    expected_point = (1.0, 2.0)
-    print("FItness for func index",input_data['func_index'])
-    print(fitness(code, expected_point))
-    

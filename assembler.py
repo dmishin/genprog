@@ -1,24 +1,25 @@
 import re
-#import parseheader
+import os
 import machinedef
 codes = [c.name for c in machinedef.commands]#parseheader.commands[:-1]
-code2index = {code:idx for idx, code in enumerate(codes)}
+code2index = {c.name:c.code for c in machinedef.commands}
 
 def _codes_by_argtype(atype):
     return set(c.name for c in machinedef.commands if c.argtype==atype)
-nop_codes = _codes_by_argtype(machinedef.NO)
-vregister_codes = _codes_by_argtype(machinedef.VREG)
-fregister_codes = _codes_by_argtype(machinedef.FREG)
-float_arg_codes = _codes_by_argtype(machinedef.FVAL)
-label_codes = _codes_by_argtype(machinedef.LABEL)
-
-
+nop_codes = _codes_by_argtype(machinedef.ArgType.NO)
+vregister_codes = _codes_by_argtype(machinedef.ArgType.VREG)
+fregister_codes = _codes_by_argtype(machinedef.ArgType.FREG)
+float_arg_codes = _codes_by_argtype(machinedef.ArgType.FVAL)
+label_codes = _codes_by_argtype(machinedef.ArgType.LABEL)
 def compile_code(source):
     """Compile asembly to executable bytecode"""
     compiled = []
-    
     for line in source.split("\n"):
+        #clean up the line
         line = line.split('#',1)[0].strip()
+        #remove line number if present
+        m = re.match(r"^\s*\d+\s*(.*)$", line)
+        if m: line = m.group(1)
         if not line: continue
         parts = re.split(r"\s+", line)
         op = parts[0].lower()
@@ -43,27 +44,26 @@ def compile_code(source):
 def float2byte(arg):
     return int(round(float(arg)*32.0))&255
 
-def byte2float(b):
-    if b > 127:
-        b = b-256
-    return b/32.0
-
 if __name__=="__main__":
-    bytecode = compile_code("""
-################################
-#sortarray of first 3 vectors
-################################
-#start sorting
-label 30
+    import argparse
+    import json
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source",
+                        help="Input dource code file, in text format")
+    parser.add_argument("-o", "--output", help="Output json file (default is name.json)")
+    args = parser.parse_args()
+    if args.output:
+        out = args.output
+    else:
+        out = os.path.splitext(args.source)[0] + ".json"
 
-# v0 < v1?
-vload 0
-vless 1
-iftrue_down 30 #label 10
-#swap v0 <-> v1
-vswap 1
-label 10
-vstore 0    
-label 30
-""")
-    print(bytecode)
+    with open(args.source, "r")  as hin:
+        bytecode = compile_code(hin.read())
+        
+    with open(out, "w") as hout:
+        json.dump({'hexcode': bytecode.hex(),
+                   'command_system_hash': machinedef.command_system_hash(),
+                   'description': f"Compiled source {args.source}"
+        }, hout)
+        hout.write("\n")
