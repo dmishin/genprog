@@ -77,6 +77,12 @@ def point_str(self):
         return "{}:?".format(self.x)
 point.__str__ = point_str
 del point_str
+
+def wrapfunc(func):
+    if not callable(func): raise ValueError("Function mus be callable")
+    f = CallbackFunction()
+    f.set(func)
+    return f	  
 %}
 
 %feature("pythonprepend") Machine::set_function(AbstractFunction &) %{

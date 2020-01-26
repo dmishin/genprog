@@ -1,15 +1,9 @@
 import machine
 import nmead
 
-def wrapfunc(func):
-    if not callable(func): raise ValueError("Function mus be callable")
-    f = machine.CallbackFunction()
-    f.set(func)
-    return f
-
 machine.randomize()
 m = machine.Machine()
-f = wrapfunc(lambda x,y: (x-5)**2+(y-3)**2)
+f = machine.wrapfunc(lambda x,y: (x-5)**2+(y-3)**2)
 print("try evaluate:", f.evaluate((10,10)))
 m.set_function(f)
 
