@@ -152,6 +152,11 @@ public:
   void set_vec_reg(size_t i, const vec&v){ vec_registers[i%NVECREG].set(v); };
   double get_float_reg(size_t i)const{ return float_registers[i%NFLOATREG]; };
   void set_float_reg(size_t i, double v){ float_registers[i%NFLOATREG]=v; };
+  int get_jump_index(size_t address);
+private:
+  //pre-calculated list of labels
+  std::vector<std::pair<size_t, i8> > labels;
+  void prepare_labels();
   
 private:
   double eval_function(const vec &v);

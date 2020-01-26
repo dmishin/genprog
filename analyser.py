@@ -1,12 +1,11 @@
 import re
-#import parseheader
 from collections import defaultdict
 import tempfile
-import machinedef
-from disassembler import decompile_instruction, map_jumps
 import os
 import subprocess
 import shutil
+import machinedef
+from disassembler import decompile_instruction, map_jumps
 
 class BaseBlock():
     def __init__(self, name, next):
@@ -195,10 +194,16 @@ def _eliminate_empty_blocks(blocks):
     
     def propagate_arrow(targetname):
         target=blocks[targetname]
-        if isempty(target):
-            return propagate_arrow(target.next)
-        else:
-            return targetname
+        visited = set((target,))
+        while isempty(target):
+            targetname = target.next
+            target = blocks[targetname]
+            if target in visited:
+                #loop of empty blocks...
+                break
+            else:
+                visited.add(target)
+        return targetname
 
     eliminated = {}
     for c in blocks.values():

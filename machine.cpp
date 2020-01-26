@@ -201,28 +201,38 @@ void print_jump_map(const Machine &m, std::ostream&os)
   os<<"}";
 }
 
-void Machine::map_jumps()
+void Machine::prepare_labels()
 {
   for(size_t i=0; i!=code.size(); ++i){
-    switch(code[i].cmd){
-    case cmd_jump_up:
-    case cmd_iftrue_up:
-    case cmd_iffalse_up:
-      //TRACE("Jump at"<<i<<" mapped up to ");
-      code[i].arg_address = find_label(i, code[i].arg_label, -1);
-      //TRACE(code[i].arg_address<<std::endl);
-      break;
-    case cmd_jump_down:
-    case cmd_iftrue_down:
-    case cmd_iffalse_down:
-      //TRACE("Jump at"<<i<<" mapped down to ");
-      code[i].arg_address = find_label(i, code[i].arg_label, 1);
-      //TRACE(code[i].arg_address<<std::endl);
-      break;
-    default:
-      continue;
+    if (code[i].cmd==cmd_label){
+      labels.push_back(std::make_pair(i, code[i].arg_label));
     }
-  };
+  }
+}
+
+int get_jump_dir(command cmd){
+  switch(cmd){
+  case cmd_jump_up:
+  case cmd_iftrue_up:
+  case cmd_iffalse_up:
+    return -1;
+    
+  case cmd_jump_down:
+  case cmd_iftrue_down:
+  case cmd_iffalse_down:
+    return 1;
+  default:
+    return 0;
+ }
+}
+void Machine::map_jumps()
+{
+  prepare_labels();
+  for(size_t i=0; i!=code.size(); ++i){
+    int jdir = get_jump_dir(code[i].cmd);
+    if (jdir==0) continue;
+    code[i].arg_address = find_label(i, code[i].arg_label, jdir);
+  }
   if(tracing){
     std::ostringstream os;
     print_jump_map(*this, os);
@@ -231,6 +241,14 @@ void Machine::map_jumps()
   }
 }
 
+int Machine::get_jump_index(size_t address)
+{
+  if(address >= code.size()) return -1;
+  if (get_jump_dir(code[address].cmd)==0)
+    return -1;
+  else
+    return static_cast<int>(code[address].arg_address);
+}
 
 int label_dist(i8 a, i8 b)
 {
@@ -242,7 +260,23 @@ int label_dist(i8 a, i8 b)
   }
   return d;
 }
+
+/**Calculate fitness of given label instruction to the JUMP instruction
+   returns pair: distance (in jump direction), label matching
+ */
+std::pair<int,size_t> label_fitness(const std::pair<size_t, i8> &label, size_t from, i8 jumplabel, bool forward, size_t code_size)
+{
+  //jump distance is
+  //int(label.first) - int(from)
+  int d = static_cast<int>(label.first)-static_cast<int>(from);
+  if (!forward) d = -d;
+  return std::make_pair(label_dist(label.second, jumplabel),
+			static_cast<size_t>((d+code_size)%code_size));
+}
+  
 size_t Machine::find_label(size_t start, i8 label, int direction)const{
+  //old code
+  /*
   size_t i=start;
   size_t best_i = start;
   int best_dist = 1000;
@@ -259,6 +293,25 @@ size_t Machine::find_label(size_t start, i8 label, int direction)const{
       break;
   }
   return best_i;
+  */
+  //new code
+  std::pair<int,size_t> best_fitness;
+  size_t best_address=start;
+  bool has_best=false;
+  
+  for(size_t i=0; i!=labels.size(); ++i){
+    std::pair<int,size_t> fitness = label_fitness(labels[i], start, label, direction==1, code.size());
+    if (!has_best){
+      has_best=true;
+      best_fitness = fitness;
+      best_address = labels[i].first;
+    }else if(fitness < best_fitness){
+      best_fitness = fitness;
+      best_address = labels[i].first;
+    }
+  }
+  //std::cout<<"Jump from "<<start<<" label:"<<(int)label<<" to:"<<best_address<<std::endl;
+  return best_address;
 }
 
 void Machine::steps(size_t n)

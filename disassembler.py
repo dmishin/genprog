@@ -34,18 +34,14 @@ def decompile(bincode):
     return "\n".join(filter(bool, (decompile_instruction(oc, arg)
                             for oc, arg in zip(bincode[::2],bincode[1::2]))))
 def map_jumps(code):
+    from machine import Machine, command_system_hash
+    assert command_system_hash() == machinedef.command_system_hash()
+    m = Machine()
+    m.load_code(code)
     jmap = {}
     for i in range(0, len(code)-1, 2):
-        instr = code[i] % len(machinedef.commands)
-        command = machinedef.commands[instr]
-        arg = code[i+1]
-        if command.jumpdir=="up":
-            direction = -1
-        elif command.jumpdir=="down":
-            direction =  1
-        else:
-            continue
-        target = _find_label(code, i, arg, direction);
+        target = m.get_jump_index(i//2)*2
+        if target == -2: continue
         if target != i:
             #successfully found jump target
             jmap[i] = target
@@ -53,32 +49,6 @@ def map_jumps(code):
             #jump to self - special case. move to the next instruction
             jmap[i] = (target + 2)%len(code)
     return jmap
-
-cmd_label = machinedef.name2cmd['label'].code
-def _find_label(code, start, label, direction):
-    codesize = (len(code)//2)*2
-    i=start
-    best_i = start
-    best_dist = 1000
-    while True:
-        i = (i+direction*2)%codesize
-        if i==start: break
-        if code[i] % len(machinedef.commands) != cmd_label: continue
-        dist = _label_dist(label, code[i+1])
-        if dist < best_dist:
-            best_dist = dist
-            best_i = i
-        if best_dist == 0:
-            break
-    return best_i
-
-def _label_dist(a, b):
-    diff = a ^ b;
-    d = 0;
-    while diff:
-        d += diff % 2
-        diff /= 2
-    return d
 
 def listing(bincode, ofile):
     jumpmap = map_jumps(bincode)

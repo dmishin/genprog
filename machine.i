@@ -8,7 +8,9 @@
 %typemap(in) (const i8 *bytes, size_t array_length) {
     Py_ssize_t len;
     char * pbuffer;
-    PyBytes_AsStringAndSize($input, &pbuffer, &len);
+    if (-1==PyBytes_AsStringAndSize($input, &pbuffer, &len)){
+      return NULL;
+    }
     $1 = reinterpret_cast<i8*>(pbuffer);
     $2 = len;
  }
@@ -96,7 +98,7 @@ public:
     void set_vec_reg(size_t i, const vec&v);
     double get_float_reg(size_t i);
     void set_float_reg(size_t i, double v);
-
+    int get_jump_index(size_t address);
     Machine();
     void set_function(AbstractFunction &f);
   };

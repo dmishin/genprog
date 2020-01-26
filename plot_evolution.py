@@ -54,8 +54,10 @@ if __name__=="__main__":
                event.x, event.y, event.xdata, event.ydata))
         if event.button == 3:
             from analyser import show_cleaned_structure
-            code, cshash = codes[int(round(event.xdata))]
-            print(code.hex())
+            x = int(round(event.xdata))
+            if x < 0: x = 0
+            code, cshash = codes[x]
+            print(f"{args.logfile}:{x}")
             if cshash is None:
                 print("Warning: no code system specified")
             else:
