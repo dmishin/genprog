@@ -1,15 +1,18 @@
-from machine import randomize, Machine, FunctionTable, command_system_hash
 import random
-from nmead import nmead_code
 import json
+from numpy.random import exponential
+from machine import randomize, Machine, FunctionTable, command_system_hash
 
 initial_genome_range = (50, 1500)
 mutate_percent = 0.05
 maxgenome = 500
+average_mutation_len = 1
+mutate_percent = 0.02
+average_duplication_len = 10
+crossover_signature_len = 6
+crossover_search_radius = 12
 
 def create_individual():
-    if random.random() < 0.01:
-        return nmead_code
     genomelen = random.randint(*initial_genome_range)
     return bytes([random.randint(0, 255) for _ in range(genomelen//2*2)])
 
@@ -56,8 +59,6 @@ class Fitness:
                  -steps/ self.average_attempts,
                  -len(genome) ) #allow 100 bytes for free
         
-crossover_signature_len = 6
-crossover_search_radius = 12
 def crossover(parent_1, parent_2):
     """Crossover (mate) two parents to produce two children.
 
@@ -86,10 +87,6 @@ def crossover(parent_1, parent_2):
     child_2 = parent_2[:index1] + parent_1[index2:]
     return child_1, child_2
 
-from numpy.random import exponential
-average_mutation_len = 1
-mutate_percent = 0.02
-average_duplication_len = 10
 
 def mutate(individual):
     """Reverse the bit of a random index in an individual."""
@@ -153,16 +150,47 @@ class Individual(IndividualBase):
         self.machine.load_code(genome)
         
 if __name__=="__main__":
+    from itertools import cycle, islice
+    from utils import load_code
     poolsize = 1000
     topsize = 300
-    genome = [create_individual() for _ in range(poolsize)]
+
+    initial = ["nmead.json"]
     
+    if not initial:
+        #random initilization
+        genome = [create_individual() for _ in range(poolsize)]
+    else:
+        #non-random init
+        initial_genomes = [load_code(fname) for fname in initial]
+        genome = list(islice(cycle(initial_genomes), poolsize))
+        
     randomize()
     
     fitness = Fitness(maxsteps = 10000,
                       maxevals = 1000,
                       tol = 1e-5)
     func, expected  = FunctionTable(0), (1.0,1.0)
+
+    print(json.dumps({'experiment':{
+        'poolsize': poolsize,
+        'topsize': topsize,
+        'maxsteps': fitness.maxsteps,
+        'maxevals': fitness.maxevals,
+        'tol': fitness.tol,
+        'average_attempts': fitness.average_attempts,
+        'initial_population': initial,
+        'initial_genome_range': initial_genome_range,
+        'mutate_percent': mutate_percent,
+        'maxgenome': maxgenome,
+        'average_mutation_len': average_mutation_len,
+        'mutate_percent': mutate_percent,
+        'average_duplication_len': average_duplication_len,
+        'crossover_signature_len': crossover_signature_len,
+        'crossover_search_radius': crossover_search_radius,
+        'command_system_hash': command_system_hash()
+    }}))
+        
     
     gen = 0
     while True:
