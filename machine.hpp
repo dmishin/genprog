@@ -106,6 +106,19 @@ public:
   virtual double evaluate(const vec& x)const=0;
 };
 
+//function pointer type for callback
+typedef double (*TFunc)(double, double, void*);
+class CallbackFunction: public AbstractFunction{
+public:
+  TFunc callback;
+  void *userdata;
+  CallbackFunction():callback(0),userdata(0){};
+  virtual ~CallbackFunction(){};
+  virtual double evaluate(const vec& x)const{
+    return callback(x.coord[0],x.coord[1],userdata);
+  };
+};
+
 class FunctionTable: public AbstractFunction{
 public:
   size_t index;

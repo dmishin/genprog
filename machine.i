@@ -1,3 +1,4 @@
+//%module(directors="1") machine
 %module machine
 %{
 #include "machine.hpp"
@@ -34,20 +35,39 @@
   }
  }
 
-%typemap(out) vec {
+%typemap(in) vec &(vec vtemp){
+  $1 = &vtemp;
+  if (PyTuple_Check($input)) {
+    if (PyTuple_Size($input) != DIMENSION){
+      PyErr_SetString(PyExc_TypeError, "Tuple must have " TEXTIFY(DIMENSION) " values");
+      return NULL;
+    }
+    FOR2(i){
+      vtemp.coord[i] = PyFloat_AsDouble(PyTuple_GetItem($input, i));
+      if (PyErr_Occurred()){
+	return NULL;
+      }
+    }
+  } else {
+    PyErr_SetString(PyExc_TypeError,"expected a tuple.");
+    return NULL;
+  }
+ }
+
+%typemap(out) vec, const vec & {
   $result = PyTuple_New(DIMENSION);
   FOR2(i){
     PyTuple_SetItem($result, i, PyFloat_FromDouble($1.coord[i]));
   }
  }
 
-  typedef signed char i8;
+typedef signed char i8;
 
-  struct point{
-    vec x;
-    double f;
-    bool evaluated;
-  };
+struct point{
+  vec x;
+  double f;
+  bool evaluated;
+};
 
 %pythoncode %{
 def point_str(self):
@@ -101,33 +121,57 @@ public:
     int get_jump_index(size_t address);
     Machine();
     void set_function(AbstractFunction &f);
-  };
+};
 
-/*
-%pythoncode %{
-def _replace_set_function(MachineClass):
-    old_method = MachineClass.set_function
-    def new_set_function(self, f):
-       self._function = f
-       return old_method(self, f)
-    MachineClass.set_function = new_set_function
-_replace_set_function(Machine)
-del _replace_set_function	 
-%}
-*/	 
 class AbstractFunction{
  public:
   AbstractFunction();
+  virtual ~AbstractFunction();
   virtual double evaluate(const vec& x)const=0;
 };
 
 class FunctionTable: public AbstractFunction{
 public:
-  FunctionTable(size_t index_):index(index_){};
+  FunctionTable(size_t index_);
+  virtual ~FunctionTable();
   virtual double evaluate(const vec&x)const;
 };
 
+//function pointer type for callback
+%{
+  static double PythonCallback(double x, double y, void* data)
+  {
+    PyObject* func = (PyObject*)data;
+    PyObject* args = Py_BuildValue("dd", x,y);
+    PyObject* res = PyEval_CallObject(func, args);
+    double dres;
+    Py_DECREF(args);
+    if (res){
+      dres = PyFloat_AsDouble(res);
+    }else{
+      dres = -1;
+    }
+    Py_XDECREF(res);
+    return dres;
+  }
+%}
+
+typedef double (*TFunc)(double, double, void*);
+class CallbackFunction: public AbstractFunction{
+public:
+  CallbackFunction();
+  virtual ~CallbackFunction();
+  virtual double evaluate(const vec& x)const;
+};
+
+%addmethods CallbackFunction{
+  void set(PyObject* pyfunc){
+    self->callback = &PythonCallback;
+    Py_XDECREF((PyObject*)self->userdata);
+    self->userdata = (void*)pyfunc;
+    Py_INCREF(pyfunc);
+  }
+}
 
 void randomize();
-
 const char* command_system_hash();
