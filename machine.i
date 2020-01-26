@@ -81,7 +81,8 @@ del point_str
 def wrapfunc(func):
     if not callable(func): raise ValueError("Function mus be callable")
     f = CallbackFunction()
-    f.set(func)
+    f._set(func)
+    f._function = func	     
     return f	  
 %}
 
@@ -171,11 +172,10 @@ public:
 };
 
 %addmethods CallbackFunction{
-  void set(PyObject* pyfunc){
+  void _set(PyObject* pyfunc){
+    //This method would not increase reference count of the function; it is handled by the wrapfunc function
     self->callback = &PythonCallback;
-    Py_XDECREF((PyObject*)self->userdata);
     self->userdata = (void*)pyfunc;
-    Py_INCREF(pyfunc);
   }
 }
 
