@@ -199,12 +199,25 @@ def _eliminate_empty_blocks(blocks):
             targetname = target.next
             target = blocks[targetname]
             if target in visited:
-                #loop of empty blocks...
-                break
+                #loop of empty blocks: infinite loop
+                return hang_block_name()
             else:
                 visited.add(target)
         return targetname
 
+    infinite_loop_block = []
+    def hang_block_name():
+        #Returns name of the infinite loop block.
+        #If it is not present, then creates it.
+        if infinite_loop_block:
+            return infinite_loop_block[0]
+        else:
+            #print("#### infinite loop detected, adding it")
+            b = Block("infinite_loop", [], "infinite_loop")
+            infinite_loop_block.append(b.name)
+            eliminated[b.name]=b
+            return b.name
+            
     eliminated = {}
     for c in blocks.values():
         if isempty(c): continue
