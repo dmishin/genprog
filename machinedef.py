@@ -75,10 +75,10 @@ command('fadd_value', ArgType.FVAL, """\
 """,changes="fa")
 command('fmul', ArgType.FREG, """\
     float_accum *= FLOAT_REGISTER;
-""",changes="fa",enabled=False)
+""",changes="fa")
 command('fmul_value', ArgType.FVAL, """\
     float_accum *= instr.arg_float;
-""",changes="fa",enabled=False)
+""",changes="fa")
 command('fswap', ArgType.FREG, """\
     std::swap(float_accum, FLOAT_REGISTER);
 """,changes="fa fr")
