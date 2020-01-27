@@ -7,7 +7,7 @@ initial_genome_range = (50, 1500)
 mutate_percent = 0.05
 maxgenome = 500
 average_mutation_len = 1
-mutate_percent = 0.02
+mutate_percent = 0.05
 average_duplication_len = 10
 crossover_signature_len = 6
 crossover_search_radius = 12
@@ -58,7 +58,8 @@ class Fitness:
                  -evals/ self.average_attempts,
                  -steps/ self.average_attempts,
                  -len(genome) ) #allow 100 bytes for free
-        
+    def callstar(self, gfe):
+        return self(*gfe)
 def crossover(parent_1, parent_2):
     """Crossover (mate) two parents to produce two children.
 
@@ -155,7 +156,8 @@ if __name__=="__main__":
     poolsize = 1000
     topsize = 300
 
-    initial = ["nmead.json"]
+    #initial = ["nmead.json"]
+    initial = []
     
     if not initial:
         #random initilization
@@ -170,7 +172,7 @@ if __name__=="__main__":
     fitness = Fitness(maxsteps = 10000,
                       maxevals = 1000,
                       tol = 1e-5)
-    func, expected  = FunctionTable(0), (1.0,1.0)
+    func, expected  = (0), (1.0,1.0)
 
     print(json.dumps({'experiment':{
         'poolsize': poolsize,
@@ -191,11 +193,21 @@ if __name__=="__main__":
         'command_system_hash': command_system_hash()
     }}))
         
-    
+    from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+    #executor = ThreadPoolExecutor()
+    executor = ProcessPoolExecutor()
     gen = 0
     while True:
         gen += 1
-        fgenome = [(fitness(g, func, expected),g) for g in genome]
+        #fgenome = [(fitness(g, func, expected),g) for g in genome]
+        #fgenome = list(executor.map((lambda g: (fitness(g, func, expected),g)),
+        #                       genome))
+        ffs = (executor.map(fitness.callstar,
+                            [(g, func, expected) for g in genome]))
+        fgenome = list(zip(ffs, genome))
+
+        #print(fgenome)
+        #exit(1)
         fgenome.sort(key = lambda ab:ab[0], reverse=True)
         fgenome = fgenome[:topsize]
         #if gen%100 == 0:

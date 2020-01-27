@@ -1,5 +1,5 @@
 //%module(directors="1") machine
-%module machine
+%module(threads="1") machine
 %{
 #include "machine.hpp"
 #define TEXTIFY(s) _TEXTIFY(s)
@@ -118,8 +118,10 @@ public:
     //load code and prepare it for running
     void load_code(const i8* bytes, size_t array_length);
     void step();
+    %thread;
     void steps(size_t n);
     bool runto(size_t maxsteps, size_t maxevals, vec target, double tol);
+    %nothread;
     void reset();
     vec get_vec_reg(size_t i);
     void set_vec_reg(size_t i, const vec&v);
@@ -148,6 +150,7 @@ public:
 %{
   static double PythonCallback(double x, double y, void* data)
   {
+    PyGILState_STATE state = PyGILState_Ensure();
     PyObject* func = (PyObject*)data;
     PyObject* args = Py_BuildValue("dd", x,y);
     PyObject* res = PyEval_CallObject(func, args);
@@ -159,6 +162,7 @@ public:
       dres = -1;
     }
     Py_XDECREF(res);
+    PyGILState_Release(state);
     return dres;
   }
 %}
