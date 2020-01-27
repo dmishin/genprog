@@ -33,7 +33,7 @@ std::ostream & operator << (std::ostream&os, const point&p){
 }
 
 std::ostream &operator <<(std::ostream &os, const instruction &cp){
-  os<<cp.cmd<<"{f:"<<cp.arg_float<<" i:"<<cp.arg_index<<" lab:"<<(int)cp.arg_label<<" addr:"<<cp.arg_address<<"}";
+  os<<cp.cmd<<"{f:"<<cp.arg_float<<" i:"<<cp.arg_index<<" lab:"<<(int)cp.arg_label<<" addr:"<<cp.arg_address<<"has_address:"<<cp.has_address<<"}";
   return os;
 }
 
@@ -171,6 +171,7 @@ void Machine::load_code(const i8* bytes, size_t size)
     //LABEL commands
     case arg_label:
       cp.arg_label = arg;
+      cp.has_address = false;
       break;
     }
     code.push_back(cp);
@@ -225,9 +226,25 @@ int get_jump_dir(command cmd){
     return 0;
  }
 }
+//lazily calculated getter for jump address.
+size_t Machine::get_jump_address(size_t instruction_address)
+{
+  //instruction must have jump type, it is not checked!
+  instruction &ins(code[instruction_address]);
+  if (!ins.has_address){
+    //has to update it
+    int jdir = get_jump_dir(ins.cmd);
+    //must be non-zero!
+    ins.arg_address = find_label(instruction_address, ins.arg_label, jdir);
+    ins.has_address = true;
+  }
+  return ins.arg_address;
+}
 void Machine::map_jumps()
 {
   prepare_labels();
+  //disable immediate calculation of jump map: it will be done lazily.
+  /*
   for(size_t i=0; i!=code.size(); ++i){
     int jdir = get_jump_dir(code[i].cmd);
     if (jdir==0) continue;
@@ -239,15 +256,17 @@ void Machine::map_jumps()
     os<<std::endl;
     trace(os.str());
   }
+  */
 }
 
+//python interface
 int Machine::get_jump_index(size_t address)
 {
   if(address >= code.size()) return -1;
   if (get_jump_dir(code[address].cmd)==0)
     return -1;
   else
-    return static_cast<int>(code[address].arg_address);
+    return static_cast<int>(get_jump_address(address));
 }
 
 int label_dist(i8 a, i8 b)

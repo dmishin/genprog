@@ -96,6 +96,8 @@ struct instruction{
     i8 arg_label;
     size_t arg_address;
   };
+  //For jump instruction, True if address is calculated. False if label is stored
+  bool has_address;
 };
 std::ostream &operator <<(std::ostream &os, const instruction &cp);
 
@@ -174,6 +176,7 @@ private:
 private:
   double eval_function(const vec &v);
   void evaluate(point &p);
+  size_t get_jump_address(size_t instruction_address);
   void map_jumps();
   size_t find_label(size_t start, i8 label, int direction)const;
   void trace(const std::string & msg)const;
