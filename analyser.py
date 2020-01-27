@@ -283,25 +283,29 @@ def render_structure_dot(blocks):
     parts.append("}")
     return "\n".join(parts)
 
-def show_dot(dotcode, png=None, svg=None):
+def show_dot(dotcode, png=None, svg=None, dotargs=None):
     td = tempfile.mkdtemp()
     tf = os.path.join(td,"diagram.dot")
     try:
         with open(tf,"w") as hf:
             hf.write(dotcode)
         if png:
-            subprocess.call(['dot','-Tpng','-o',png, tf])
+            args = ['dot','-Tpng','-o',png, tf]
         elif svg:
-            subprocess.call(['dot','-Tsvg','-o',svg, tf])
+            args = ['dot','-Tsvg','-o',svg, tf]
         else:
-            subprocess.call(['dot','-Tx11', tf])
+            args = ['dot','-Tx11', tf]
+        if dotargs: args.extend(dotargs)
+        subprocess.call(args)
     finally:
         shutil.rmtree(td)
 
-def show_cleaned_structure(bincode, png=None, optimize=True, wait=True, svg=None):
+        
+        
+def show_cleaned_structure(bincode, png=None, optimize=True, wait=True, svg=None, dotargs=None):
     def doshow():
         return show_dot(render_structure_dot(parse_structure(bincode, optimize=optimize)),
-                        png=png,svg=svg)
+                        png=png,svg=svg,dotargs=dotargs)
     if wait: doshow()
     else:
         from threading import Thread
@@ -309,7 +313,6 @@ def show_cleaned_structure(bincode, png=None, optimize=True, wait=True, svg=None
         t.start()
             
 if __name__=="__main__":
-    import nmead
     from utils import load_code
     import argparse
     import os
@@ -326,8 +329,8 @@ if __name__=="__main__":
 
     png, svg = None, None
     if args.output:
-        if output.format:
-            fmt = output.format.lower()
+        if args.format:
+            fmt = args.format.lower()
         else:
             fmt = os.path.splitext(args.output)[1][1:].lower()
         if fmt=="svg":
