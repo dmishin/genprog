@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import random
 import json
 from numpy.random import exponential

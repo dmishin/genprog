@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from machine import randomize, Machine, FunctionTable, command_system_hash, wrapfunc
 from matplotlib import pyplot
 import numpy as np

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from machine import randomize, Machine, FunctionTable, command_system_hash
 from genetic_optim import Fitness
 import argparse
