@@ -75,10 +75,10 @@ command('fadd_value', ArgType.FVAL, """\
 """,changes="fa")
 command('fmul', ArgType.FREG, """\
     float_accum *= FLOAT_REGISTER;
-""",changes="fa")
+""",changes="fa",enabled=False)
 command('fmul_value', ArgType.FVAL, """\
     float_accum *= instr.arg_float;
-""",changes="fa")
+""",changes="fa",enabled=False)
 command('fswap', ArgType.FREG, """\
     std::swap(float_accum, FLOAT_REGISTER);
 """,changes="fa fr")
@@ -89,7 +89,8 @@ command('fless_value', ArgType.FVAL, """\
     flag = float_accum < instr.arg_float;
 """,changes="b")
 
-code_jump="   cpr = instr.arg_address;\n"
+#code_jump="   cpr = instr.arg_address;\n"
+code_jump="   cpr = get_jump_address(cpr);\n"
 command('jump_up', ArgType.LABEL, code_jump, jumpdir="up",changes="j")
 command('jump_down', ArgType.LABEL, code_jump, jumpdir="down",changes="j")
 command('iftrue_up', ArgType.LABEL, code_jump, jumpdir="up", condition=True,changes="j")
