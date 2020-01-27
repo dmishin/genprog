@@ -1,4 +1,4 @@
-from machine import randomize, Machine, FunctionTable, command_system_hash
+from machine import randomize, Machine, FunctionTable, command_system_hash, wrapfunc
 from matplotlib import pyplot
 import numpy as np
 import argparse
@@ -6,7 +6,7 @@ from utils import load_code
 
 def get_tracks(code, funcindex, steps):
     m = Machine()
-    m.set_function(FunctionTable(funcindex))
+    m.set_function(funcindex)
     m.load_code(code)
 
     ncalls = []
@@ -57,21 +57,32 @@ def doplot(code, nfunc, x0, y0, steps):
                 x0, y0,
                 style=""
     )
-    
+
+
 if __name__=="__main__":
     randomize()
     parser = argparse.ArgumentParser()
     parser.add_argument("codefile",
                         nargs='+',
                         help="Input code files, in JSON format")
+    parser.add_argument("-s", "--steps",
+                        default=5000,
+                        type=int,
+                        help="Number of steps to evaluate")
     args = parser.parse_args()
+
+    func = 0
+    target = (1.0, 1.0)
+    func = wrapfunc(lambda x,y: (x-10)**2+(y-20)**2)
+    target = (10.0, 20.0)
+                    
     
     for fname in args.codefile:
         code = load_code(fname,command_system_hash())
         
-        calls, vecs, floats  = get_tracks(code, 0, 5000)
+        calls, vecs, floats  = get_tracks(code, func, args.steps)
         plot_tracks(calls, vecs[0:1], floats,
-                    1.0, 1.0,
+                    *target,
                     style="k-"
         )
     pyplot.legend()

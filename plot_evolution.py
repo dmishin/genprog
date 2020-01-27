@@ -3,9 +3,12 @@ import json
 import argparse
 import machinedef
 
+class SkipLine(Exception):pass
+
 def parseline(line):
     if line[0] != "{": return parseline_legacy(line)
     data = json.loads(line)
+    if 'hexcode' not in data: raise SkipLine()
     (dist, neval, steps, size) = data['fitness']
     code = bytes.fromhex(data['hexcode'])
     return -dist, -neval, code, data.get('command_system_hash')
@@ -27,6 +30,8 @@ def parselog(logfile):
                 dists.append(dist)
                 evals.append(neval)
                 codes.append((code,cshash))
+            except SkipLine:
+                pass
             except Exception as err:
                 print("Error reading line:", err)
     return dists, evals, codes
@@ -67,5 +72,5 @@ if __name__=="__main__":
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     
     ax1.semilogy(dists)
-    ax2.plot(evals)
+    ax2.semilogy(evals)
     pp.show()
