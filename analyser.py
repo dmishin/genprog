@@ -6,7 +6,7 @@ import os
 import subprocess
 import shutil
 import machinedef
-from disassembler import decompile_instruction, map_jumps
+from disassembler import decompile_instruction, map_jumps, map_live_code
 
 class BaseBlock():
     def __init__(self, name, next):
@@ -31,9 +31,11 @@ class CondOp(BaseBlock):
         self.jump = jump
     def __str__(self):
         return "{}:[if {}: ->{} else: ->{}]".format(self.name, self.iftrue, self.jump, self.next)
-def parse_structure(code, optimize=True, show_address=False):
+def parse_structure(code, optimize=True, show_address=False, show_dead_code=True):
     """Decompile code and show its structure in graphwiz"""
     jumpmap = map_jumps(code)
+    if show_dead_code:
+        live_code_map = map_live_code(code)
 
     label = machinedef.name2cmd['label'].code
     uncond_jumps = tuple( c.code for c in machinedef.commands
@@ -73,6 +75,8 @@ def parse_structure(code, optimize=True, show_address=False):
         line = decompile_instruction(cmd, code[i+1])
         if not line: continue
         if show_address:  line = line + f" #@{i//2}"
+        if show_dead_code and not live_code_map[i//2]:
+            line = line + "#DEAD"
         if cmd == label:
             #End current block
             prev_block = cur_block

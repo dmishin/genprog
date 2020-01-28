@@ -58,10 +58,13 @@ if __name__=="__main__":
         print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
               ('double' if event.dblclick else 'single', event.button,
                event.x, event.y, event.xdata, event.ydata))
-        if event.button == 3:
+        x = int(round(event.xdata))
+        if x < 0: x = 0
+        if event.button == 1:
+            import subprocess
+            subprocess.call(["./plot_track.py", f"{args.logfile}:{x}","nmead.json"])
+        elif event.button == 3:
             from analyser import show_cleaned_structure
-            x = int(round(event.xdata))
-            if x < 0: x = 0
             code, cshash = codes[x]
             print(f"{args.logfile}:{x}")
             if cshash is None:
