@@ -51,13 +51,31 @@ def map_jumps(code):
             jmap[i] = (target + 2)%len(code)
     return jmap
 
-def listing(bincode, ofile):
+def listing(bincode, ofile, show_dead_code=True):
     jumpmap = map_jumps(bincode)
+    if show_dead_code:
+        live_code_map = map_live_code(bincode)
     for i in range(0, len(bincode)-1,2):
         line = decompile_instruction(bincode[i],bincode[i+1])
         if i in jumpmap:
             line = line + "#-->{}".format(jumpmap[i])
+        if show_dead_code and not live_code_map[i//2]:
+            line = line + "#DEAD"
         ofile.write("{}\t{}\n".format(i,line))
+
+def map_live_code(bincode, func_index=0, steps=10000, attempts = 10):
+    """Run the program several times to get live code map"""
+    from machine import Machine, command_system_hash, FunctionTable
+    assert command_system_hash() == machinedef.command_system_hash()
+    m = Machine()
+    m.load_code(bincode)
+    m.set_trace_live_code(True)
+    m.set_function(FunctionTable(func_index))
+    for i in range(attempts):
+        if i != 0: m.reset()
+        m.steps(steps)
+    #now map is ready
+    return [m.is_instruction_live(i) for i in range(len(bincode)//2)]
         
 if __name__=="__main__":
     from utils import load_code

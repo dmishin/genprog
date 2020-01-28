@@ -33,7 +33,7 @@ std::ostream & operator << (std::ostream&os, const point&p){
 }
 
 std::ostream &operator <<(std::ostream &os, const instruction &cp){
-  os<<cp.cmd<<"{f:"<<cp.arg_float<<" i:"<<cp.arg_index<<" lab:"<<(int)cp.arg_label<<" addr:"<<cp.arg_address<<"has_address:"<<cp.has_address<<"}";
+  os<<cp.cmd<<"{f:"<<cp.arg_float<<" i:"<<cp.arg_index<<" lab:"<<(int)cp.arg_label<<" addr:"<<cp.arg_address<<" has_address:"<<cp.has_address<<" alive:"<<cp.alive<<"}";
   return os;
 }
 
@@ -80,6 +80,7 @@ void random_point(point&p)
 Machine::Machine()
   :objective(NULL)
   ,tracing(false)
+  ,tracing_live_code(false)
 {
   reset();
 }
@@ -153,6 +154,7 @@ void Machine::load_code(const i8* bytes, size_t size)
     i8 arg=bytes[i+1];
     instruction cp;
     cp.cmd = cmd;
+    cp.alive = false;
     switch(get_argument_type(cmd)){
     //NOP commands
     case arg_no:
@@ -177,10 +179,10 @@ void Machine::load_code(const i8* bytes, size_t size)
     code.push_back(cp);
   }
   //change labels to jump indices in instructions
-  map_jumps();
+  prepare_labels();  
 }
 
-void print_jump_map(const Machine &m, std::ostream&os)
+void print_jump_map(Machine &m, std::ostream&os)
 {
   os<<"{";
   bool first=true;
@@ -194,7 +196,7 @@ void print_jump_map(const Machine &m, std::ostream&os)
     case cmd_iffalse_down:
       if (!first) os <<", ";
       else first=false;
-      os<<i<<":"<<m.code[i].arg_address;
+      os<<i<<":"<<m.get_jump_index(i);
     default:
       break;
     }
@@ -240,23 +242,10 @@ size_t Machine::get_jump_address(size_t instruction_address)
   }
   return ins.arg_address;
 }
-void Machine::map_jumps()
+bool Machine::is_instruction_live(size_t address)const
 {
-  prepare_labels();
-  //disable immediate calculation of jump map: it will be done lazily.
-  /*
-  for(size_t i=0; i!=code.size(); ++i){
-    int jdir = get_jump_dir(code[i].cmd);
-    if (jdir==0) continue;
-    code[i].arg_address = find_label(i, code[i].arg_label, jdir);
-  }
-  if(tracing){
-    std::ostringstream os;
-    print_jump_map(*this, os);
-    os<<std::endl;
-    trace(os.str());
-  }
-  */
+  if (address >= code.size()) return false;
+  return code[address].alive;
 }
 
 //python interface

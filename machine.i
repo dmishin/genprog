@@ -130,6 +130,10 @@ public:
     int get_jump_index(size_t address);
     Machine();
     void set_function(AbstractFunction &f);
+    
+    void set_trace_live_code(bool t);
+    void get_trace_live_code()const;
+    bool is_instruction_live(size_t address)const;    
 };
 
 class AbstractFunction{

@@ -50,6 +50,9 @@ void Machine::step()
   if(code.size() ==0) return;
   instruction &instr(code[cpr]);
   MTRACE("#"<<cpr<<" : "<<instr.cmd);
+  if (tracing_live_code && !instr.alive){
+    instr.alive = true;
+  }
   switch(instr.cmd){
 """)
     for cmd in commands:
@@ -77,6 +80,10 @@ void Machine::step()
                 ofile.write('    }\n')
         ofile.write(f"    }}break;\n")
     ofile.write("""\
+    }
+    //just in case jump has happened
+    if (tracing_live_code && !code[cpr].alive){
+      code[cpr].alive = true;
     }
     if (++cpr == code.size()) cpr = 0;
 }

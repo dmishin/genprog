@@ -98,6 +98,7 @@ struct instruction{
   };
   //For jump instruction, True if address is calculated. False if label is stored
   bool has_address;
+  bool alive;
 };
 std::ostream &operator <<(std::ostream &os, const instruction &cp);
 
@@ -151,6 +152,7 @@ public:
   //number of the test function
   AbstractFunction *objective;
   bool tracing;
+  bool tracing_live_code;
 
   //operations
   //load code and prepare it for running
@@ -168,16 +170,19 @@ public:
   double get_float_reg(size_t i)const{ return float_registers[i%NFLOATREG]; };
   void set_float_reg(size_t i, double v){ float_registers[i%NFLOATREG]=v; };
   int get_jump_index(size_t address);
+
+  void set_trace_live_code(bool t){tracing_live_code = t;};
+  bool get_trace_live_code()const{return tracing_live_code;};
+  bool is_instruction_live(size_t address)const;
+  
 private:
   //pre-calculated list of labels
   std::vector<std::pair<size_t, i8> > labels;
-  void prepare_labels();
-  
 private:
   double eval_function(const vec &v);
   void evaluate(point &p);
   size_t get_jump_address(size_t instruction_address);
-  void map_jumps();
+  void prepare_labels();
   size_t find_label(size_t start, i8 label, int direction)const;
   void trace(const std::string & msg)const;
 };
